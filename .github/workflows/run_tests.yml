@@ -1,0 +1,164 @@
+name: Run tests
+
+on:
+  pull_request:
+    branches: [ feedback ]
+
+jobs:
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    container:
+      image: cepryh9/spbu-linux-course-lab-02:latest
+      options: --user root
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Make solutions executable
+      run: |
+        chmod +x ./task-*/solution.sh
+
+    - name: Run tests task-01
+      id: task01
+      if: always()
+      run: |
+        /workspace/task-01/checker.sh ./task-01/solution.sh /workspace/task-01/expected
+
+    - name: Run tests task-02
+      id: task02
+      if: always()
+      run: |
+        /workspace/task-02/checker.sh ./task-02/solution.sh /workspace/task-02/expected
+
+    - name: Run tests task-03
+      id: task03
+      if: always()
+      run: |
+        /workspace/task-03/checker.sh ./task-03/solution.sh /workspace/task-03/expected
+
+    - name: Run tests task-04-1
+      id: task04_1
+      if: always()
+      run: |
+        /workspace/task-04/checker.sh ./task-04/solution.sh /workspace/task-04/expected union
+
+    - name: Run tests task-04-2
+      id: task04_2
+      if: always()
+      run: |
+        /workspace/task-04/checker.sh ./task-04/solution.sh /workspace/task-04/expected intersection
+
+    - name: Run tests task-04-3
+      id: task04_3
+      if: always()
+      run: |
+        /workspace/task-04/checker.sh ./task-04/solution.sh /workspace/task-04/expected difference
+
+    - name: Run tests task-05
+      id: task05
+      if: always()
+      run: |
+        /workspace/task-05/checker.sh ./task-05/solution.sh /workspace/task-05/expected
+
+    - name: Run tests task-06
+      id: task06
+      if: always()
+      run: |
+        /workspace/task-06/checker.sh ./task-06/solution.sh /workspace/task-06/expected
+
+    - name: Generate test summary
+      if: always()
+      run: |
+        # Create summary content
+        SUMMARY_CONTENT=$(cat << 'EOF'
+        # Test Results
+        | Task | Result |
+        |------|--------|
+        EOF
+        )
+        
+        # Add Task 01 result
+        if [ "${{ steps.task01.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 01 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 01 | ❌ Failed |"
+        fi
+
+        # Add Task 02 result
+        if [ "${{ steps.task02.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 02 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 02 | ❌ Failed |"
+        fi
+
+        # Add Task 03 result
+        if [ "${{ steps.task03.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 03 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 03 | ❌ Failed |"
+        fi
+
+        # Add Task 04-1 result
+        if [ "${{ steps.task04_1.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.1 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.1 | ❌ Failed |"
+        fi
+
+        # Add Task 04-2 result
+        if [ "${{ steps.task04_2.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.2 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.2 | ❌ Failed |"
+        fi
+
+        # Add Task 04-3 result
+        if [ "${{ steps.task04_3.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.3 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 04.3 | ❌ Failed |"
+        fi
+
+        # Add Task 05 result
+        if [ "${{ steps.task05.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 05 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 05 | ❌ Failed |"
+        fi
+
+        # Add Task 06 result
+        if [ "${{ steps.task06.outcome }}" = "success" ]; then
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 06 | ✅ Passed |"
+        else
+          SUMMARY_CONTENT="${SUMMARY_CONTENT}\n| Task 06 | ❌ Failed |"
+        fi
+       
+        # Write to step summary
+        echo "$SUMMARY_CONTENT" >> $GITHUB_STEP_SUMMARY
+        
+        # Save summary for PR comment
+        echo "$SUMMARY_CONTENT" > /tmp/test_summary.md
+
+    - name: Comment PR with test results
+      if: always() && github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{secrets.GITHUB_TOKEN}}
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('/tmp/test_summary.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });
